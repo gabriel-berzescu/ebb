@@ -112,8 +112,8 @@ bench, `&lit=1` lights the far lamp, `&run` lets a frozen world move.
 
 ## Not there yet
 
-- The sounds were made without anyone having listened to them yet. Their levels are checked by `npm run smoke`, their
-  character is not.
+- Of the sounds, only the jackdaws have been listened to and passed ("slightly metallic", as they should be). The wind,
+  the sea and the footsteps are checked for level by `npm run smoke`, not yet by ear.
 - It needs a keyboard and mouse, or a gamepad. There are no touch controls.
 
 ## Who made it
