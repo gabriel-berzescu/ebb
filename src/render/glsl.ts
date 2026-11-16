@@ -86,6 +86,7 @@ uniform vec3 uMoonDisc;
 uniform float uSunRadius;
 uniform float uMoonRadius;
 uniform float uStarGain;
+uniform sampler2D uStarMap;
 uniform sampler2D uSkyLUT;
 uniform float uExposure;
 uniform float uNight;
@@ -180,26 +181,71 @@ vec3 skyClouds(vec3 d, out float through) {
   return mix(sky, shade + lit, c);
 }
 
+// The real stars. The sky is cut into cells; uStarMap lists the stars of each cell (see starMap.ts), and a pixel
+// draws the few stars of its own cell exactly where they are.
+const vec3 GALAXY_POLE = vec3(-0.86766, -0.19811, 0.45598);
+const vec3 GALAXY_CENTRE = vec3(-0.05487, -0.87344, -0.48383);
+
+vec3 starTint(float bv) {
+  vec3 blue = vec3(0.55, 0.7, 1.0);
+  vec3 white = vec3(1.0, 0.98, 0.94);
+  vec3 orange = vec3(1.0, 0.6, 0.3);
+  return bv < 0.45 ? mix(blue, white, smoothstep(-0.3, 0.45, bv)) : mix(white, orange, smoothstep(0.45, 1.75, bv));
+}
+
 vec3 starField(vec3 d) {
+  // (by day the gain is zero and none of this is worked out)
+  if (uStarGain <= 0.0) return vec3(0.0);
   vec3 sd = uStarRot * d;
-  vec3 col = vec3(0.0);
-  for (int layer = 0; layer < 2; layer++) {
-    float sc = layer == 0 ? 85.0 : 190.0;
-    float thr = layer == 0 ? 0.90 : 0.72;
-    float size = layer == 0 ? 0.13 : 0.10;
-    vec3 p = sd * sc;
-    vec3 ip = floor(p);
-    vec3 rnd = hash33(ip + float(layer) * 17.0);
-    float mag = hash13(ip * 1.7 + 3.1 + float(layer) * 5.0);
-    float b = max(mag - thr, 0.0) / (1.0 - thr);
-    b = b * b * b + 0.05 * step(thr, mag);
-    float dist = length(fract(p) - (0.2 + 0.6 * rnd));
-    float tw = 0.78 + 0.22 * sin(uTime * (2.0 + rnd.x * 5.0) + rnd.y * 40.0);
-    col += b * tw * smoothstep(size, 0.0, dist) * mix(vec3(1.0, 0.8, 0.62), vec3(0.7, 0.82, 1.0), rnd.z) * (layer == 0 ? 1.0 : 0.45);
+  // the angle one pixel covers: wider in a rippled reflection, where a star smears out and dims
+  float px = length(fwidth(d));
+  vec3 a = abs(sd);
+  int face;
+  vec2 uv;
+  if (a.x >= a.y && a.x >= a.z) {
+    face = sd.x > 0.0 ? 0 : 1;
+    uv = sd.yz / a.x;
+  } else if (a.y >= a.z) {
+    face = sd.y > 0.0 ? 2 : 3;
+    uv = sd.xz / a.y;
+  } else {
+    face = sd.z > 0.0 ? 4 : 5;
+    uv = sd.xy / a.z;
   }
-  float band = exp(-pow(dot(sd, normalize(vec3(0.35, 0.2, 0.92))) * 3.6, 2.0));
-  col += band * (0.012 + 0.05 * fbm(sd.xy * 5.0 + sd.z * 3.0)) * vec3(0.72, 0.8, 1.0);
-  return col * uStarGain * smoothstep(-0.02, 0.12, d.y);
+  ivec2 cell = ivec2(clamp(floor((uv * 0.5 + 0.5) * 64.0), 0.0, 63.0));
+  float low = smoothstep(-0.01, 0.1, d.y);
+  vec3 col = vec3(0.0);
+  for (int k = 0; k < 6; k++) {
+    vec4 s = texelFetch(uStarMap, ivec2(face * 64 + cell.x, cell.y * 6 + k), 0);
+    if (s.w <= 0.0) break;
+    float e = fract(s.w) / 0.998;
+    float bv = floor(s.w) / 63.0 * 2.4 - 0.4;
+    // a brighter star looks larger; no star is drawn smaller than a pixel, but its light is the same spread thinner
+    float size = 0.00042 * (1.0 + 2.2 * e);
+    float wide = clamp(0.75 * px, size, 0.0025);
+    float dist = length(sd - s.xyz);
+    float q = dist * dist / (wide * wide);
+    float g = (exp(-q) + 0.045 * e * exp(-q / 14.0)) * (size * size) / (wide * wide);
+    // stars twinkle, more the nearer they are to the horizon
+    float id = fract(s.x * 37.1 + s.y * 91.7 + s.z * 53.3);
+    float tw = 1.0 - (0.1 + 0.35 * (1.0 - low)) * (0.5 + 0.5 * sin(uTime * (3.0 + 6.0 * id) + id * 60.0));
+    col += starTint(bv) * (e * e) * g * tw;
+  }
+  // the Milky Way, where it lies: along the plane of the galaxy, widest and brightest toward its centre in
+  // Sagittarius, with the dark lane that runs from the Swan down to the centre
+  float lat = dot(sd, GALAXY_POLE);
+  float toCentre = dot(sd, GALAXY_CENTRE);
+  float width = mix(0.1, 0.19, smoothstep(-0.3, 0.9, toCentre));
+  float band = exp(-lat * lat / (width * width));
+  if (band > 0.02) {
+    vec2 along = vec2(toCentre, dot(sd, cross(GALAXY_POLE, GALAXY_CENTRE)));
+    float clouds = fbm(along * 9.0 + lat * 12.0 + 2.0);
+    clouds = clouds * clouds * 2.4;
+    float rift = smoothstep(0.0, 0.5, toCentre) * exp(-pow((lat + 0.015) / 0.035, 2.0)) * smoothstep(0.3, 0.55, fbm3(along * 6.0 + 1.7));
+    vec3 glow = mix(vec3(0.7, 0.8, 1.0), vec3(1.0, 0.9, 0.78), smoothstep(0.3, 1.0, toCentre) * 0.6);
+    col += band * mix(0.3, 1.0, smoothstep(-0.6, 0.95, toCentre)) * (0.22 + clouds) * (1.0 - 0.8 * rift) * glow * 0.0034;
+  }
+  return col * uStarGain * low;
 }
 
 /** The moon's disc with its phase, and the stars behind it. */

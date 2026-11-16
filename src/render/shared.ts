@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { DAY, LATITUDE, SUN_RADIUS } from '../world/constants';
+import { DAY, SUN_RADIUS } from '../world/constants';
 import { ATMOS, luminance, skyRadiance, transmittance } from '../world/atmosphere';
 import { heavens, tideAt, wetLine, type Heavens, type Vec3 } from '../world/heavens';
 import { HOUSE, STONES } from '../world/layout';
 import { noise2, smoothstep } from '../world/noise';
+import { starFrame } from '../world/stars';
 
 /** Brightness of the full moon against the sun. Far brighter than the real one, so that moonlit nights can be walked in. */
 const MOON_POWER = 0.004;
@@ -25,7 +26,8 @@ export const U = {
   uMoonDisc: { value: new THREE.Vector3() },
   uSunRadius: { value: SUN_RADIUS },
   uMoonRadius: { value: 0.0115 },
-  uStarGain: { value: 0.03 },
+  uStarGain: { value: 0.3 },
+  uStarMap: { value: null as THREE.Texture | null },
   uSkyLUT: { value: null as THREE.Texture | null },
   uExposure: { value: 0.3 },
   uNight: { value: 0 },
@@ -65,8 +67,6 @@ export interface SkyState {
   night: number;
 }
 
-const POLE = new THREE.Vector3(0, Math.sin(LATITUDE), -Math.cos(LATITUDE));
-const m4 = new THREE.Matrix4();
 let exposure = -1;
 
 const scaled = (v: Vec3, k: number): Vec3 => [v[0] * k, v[1] * k, v[2] * k];
@@ -103,9 +103,9 @@ export function updateShared(t: number, realTime: number, dt: number): SkyState 
   if (sunUp > 0.001) U.uKeyDir.value.copy(U.uSunDir.value);
   else U.uKeyDir.value.copy(U.uMoonDir.value);
 
-  // stars turn about the pole once a day
-  m4.makeRotationAxis(POLE, hv.starAngle);
-  U.uStarRot.value.setFromMatrix4(m4);
+  // the stars turn about the pole: this matrix takes a direction in the world to the frame the stars are fixed in
+  const [sx, sy, sz] = starFrame(t);
+  U.uStarRot.value.set(sx[0], sx[1], sx[2], sy[0], sy[1], sy[2], sz[0], sz[1], sz[2]);
 
   // weather: cloud cover wanders over days, the clouds drift on a west wind
   const days = t / DAY;
@@ -128,7 +128,9 @@ export function updateShared(t: number, realTime: number, dt: number): SkyState 
   sky = sky / dirs.length + NIGHT_FLOOR;
   const groundLight = 0.3 * (luminance(sunLight) * Math.max(sun[1], 0) + luminance(moonLight) * Math.max(moon[1], 0));
   const meter = sky * 0.5 + groundLight;
-  const target = Math.min(90, Math.max(0.12, 0.31 * Math.pow(meter, -0.65)));
+  const target = Math.min(50, Math.max(0.12, 0.31 * Math.pow(meter, -0.65)));
+  // the stars are only worked out when the sky is dark enough to show them
+  U.uStarGain.value = sun[1] < -0.03 ? 0.45 : 0;
   exposure = exposure < 0 || dt <= 0 ? target : exposure + (target - exposure) * (1 - Math.exp(-dt * 1.6));
   U.uExposure.value = exposure;
   const night = 1 - smoothstep(-2.6, -0.7, Math.log10(meter));

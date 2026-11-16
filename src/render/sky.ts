@@ -32,7 +32,7 @@ export class Sky {
         uSunDir: U.uSunDir,
         uMoonDir: U.uMoonDir,
         uMoonPower: { value: 0 },
-        uFloor: { value: new THREE.Vector3(0.00045, 0.0006, 0.0011) },
+        uFloor: { value: new THREE.Vector3(0.00026, 0.00036, 0.00068) },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;

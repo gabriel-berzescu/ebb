@@ -53,6 +53,17 @@ house time runs sixty times faster, and with Shift held six hundred times, so a 
 **Sky.** The sun rises due east at six and sets due west at six. The moon goes round in ten days and its orbit is
 not a circle: when it is near it looks larger.
 
+**Stars.** The stars are the real ones: all 8,404 that the eye can see, each at its true place, brightness and colour,
+as they stand over 48 degrees north. The Pole Star is 48 degrees up, due north, over the reef, and does not move; the
+Plough turns about it. At midnight on the night of the great low, Orion and Sirius stand in the south. The Milky Way
+lies along the real plane of the galaxy, widest and brightest toward Sagittarius, with its dark lane. Still water
+mirrors all of it.
+
+What is not real is the calendar. The sun goes once round the stars in 70 days, so the constellations of every season
+come round in that time, and the moon keeps to its own invented path.
+
+![Sirius beside the winter Milky Way, over the sea](docs/stars.png)
+
 **Tide.** The sea is pulled by the moon and by the sun, as the real one is. Each raises two bulges, so there are two
 high waters and two low waters in a little over a day. When sun and moon line up (new moon, full moon) their tides
 add and the sea goes out furthest. When that happens with the moon at its nearest, it goes out further still. That is
@@ -101,9 +112,9 @@ src/render/   drawing it with three.js: one sky function shared by the dome, the
               which is why the flats mirror the sky exactly.
 src/game/     walking, sitting, the shelf, the lamp, and everything heard.
 tests/        the world's rules, checked: the great low comes every 35 days, the far lamp is clear of
-              the water only then, pools fill to their rims.
+              the water only then, pools fill to their rims, the Plough's pointers find the Pole Star.
 scripts/      shot.mjs and tour.mjs take screenshots through headless Chrome (see chrome.mjs for why the
-              browser profile is seeded); play.mjs is the launcher.
+              browser profile is seeded); play.mjs is the launcher; stars.mjs packs the star catalogue.
 ```
 
 Useful addresses while working: `?day=5.27` freezes the world at that day and hour (5.27 is about half past six on
@@ -120,5 +131,8 @@ bench, `&lit=1` lights the far lamp, `&run` lets a frozen world move.
 
 Claude built this on 2026-11-16, the evening Gabriel asked what world they would make. The jackdaws in the chimney are
 Gabriel's.
+
+The stars are from the Yale Bright Star Catalogue, 5th revised edition (D. Hoffleit and W. H. Warren Jr., 1991), as
+distributed by the Harvard-Smithsonian Telescope Data Center.
 
 MIT licence.

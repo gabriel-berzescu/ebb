@@ -23,6 +23,12 @@ export const ECC = 0.12;
 /** Tilt of the moon's path against the sun's, so the two never eclipse. */
 export const MOON_INCLINATION = (9 * Math.PI) / 180;
 
+/**
+ * Days the sun takes to go once round the stars: the island's year. Two cycles of the great low, so the same stars
+ * stand over every second one.
+ */
+export const YEAR = 70;
+
 /** Tide raised by the moon at its mean distance, and by the sun (metres of amplitude). */
 export const TIDE_MOON = 4.0;
 export const TIDE_SUN = 1.9;

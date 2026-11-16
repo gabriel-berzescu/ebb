@@ -46,8 +46,6 @@ export interface Heavens {
   moonDistance: number;
   /** Apparent angular radius of the moon (radians). */
   moonRadius: number;
-  /** Rotation of the star field about the celestial pole (radians). */
-  starAngle: number;
 }
 
 export function heavens(t: number): Heavens {
@@ -61,7 +59,6 @@ export function heavens(t: number): Heavens {
     moonLit: (1 - Math.cos(e)) / 2,
     moonDistance: dist,
     moonRadius: MOON_RADIUS / dist,
-    starAngle: sunHourAngle(t),
   };
 }
 

@@ -8,6 +8,7 @@ import { Lamps } from './render/lamps';
 import { FAR, resetExposure, U, updateShared } from './render/shared';
 import { Shadows } from './render/shadow';
 import { Sky } from './render/sky';
+import { starMapTexture } from './render/starMap';
 import { buildStructures, type ShelfItem } from './render/structures';
 import { groundTexture, terrainMesh } from './render/terrainMesh';
 import { poolsMesh, seaMesh } from './render/water';
@@ -53,6 +54,7 @@ window.addEventListener('resize', () => {
 const terrain = buildTerrain();
 U.uGround.value = groundTexture(terrain);
 U.uGroundSize.value = terrain.size;
+U.uStarMap.value = starMapTexture();
 
 const sky = new Sky();
 scene.add(sky.dome);
@@ -166,6 +168,8 @@ let lastZ = player.z;
 let toWater = 200;
 let waterCheck = 0;
 let stir = 0;
+/** Seconds the world has actually been stepped through, and frames drawn (for the checks: frames can come unevenly). */
+const stats = { sim: 0, frames: 0 };
 
 /** Metres from a point to the nearest water, sea or pool (0 when standing in it, 200 when there is none near). */
 function distanceToWater(x: number, z: number, tide: number): number {
@@ -184,6 +188,8 @@ function frame(now: number): void {
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now;
   realTime += dt;
+  stats.sim += dt;
+  stats.frames++;
   clock.advance(dt);
 
   const state = updateShared(clock.t, realTime, dt);
@@ -255,5 +261,5 @@ function frame(now: number): void {
 
 if (params.has('cam') || params.has('day') || params.has('stone')) titleEl.style.display = 'none';
 resetExposure();
-window.__ebb = { clock, player, terrain, U, lamps, interactions, jackdaws, sound };
+window.__ebb = { clock, player, terrain, U, lamps, interactions, jackdaws, sound, stats };
 requestAnimationFrame(frame);

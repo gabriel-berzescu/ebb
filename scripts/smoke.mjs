@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 /**
  * Walks the island with the keyboard and checks that the few things that can be done there can be done:
- * walking, the walls of the house, sitting on the bench, reading the shelf, lighting the far lamp.
+ * walking, the walls of the house, sitting on the bench, reading the shelf, lighting the far lamp, and sound.
  *
  *   node scripts/smoke.mjs [--port 5241]      (the dev server must be running)
+ *
+ * Nothing here trusts the wall clock. With the screen asleep a headless browser is handed its frames in bursts, half
+ * a second apart, so every check waits for the thing it is checking, and speeds are measured against the time the
+ * world was actually stepped through (window.__ebb.stats.sim).
  */
 import { launchChrome } from './chrome.mjs';
 
@@ -11,7 +15,7 @@ const port = process.argv.includes('--port') ? process.argv[process.argv.indexOf
 const browser = await launchChrome({
   channel: 'chrome',
   headless: true,
-  args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--force_high_performance_gpu'],
+  args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--force_high_performance_gpu', '--autoplay-policy=no-user-gesture-required'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
@@ -27,14 +31,30 @@ const check = (name, ok, detail = '') => {
 };
 const open = async (query) => {
   await page.goto(`http://127.0.0.1:${port}/?${query}`, { waitUntil: 'load', timeout: 90000 });
-  await page.waitForFunction(() => window.__READY__ === true, null, { timeout: 90000, polling: 200 });
-  await page.waitForTimeout(400);
+  await page.waitForFunction(() => window.__READY__ === true, null, { timeout: 90000, polling: 100 });
 };
-const hold = async (key, ms) => {
+/** Wait until `test` (run in the page) is true; false if it never is. */
+const until = async (test, arg, timeout = 15000) => {
+  try {
+    await page.waitForFunction(test, arg, { timeout, polling: 50 });
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** Hold a key while the world is stepped through `seconds`. */
+const holdFor = async (key, seconds) => {
+  const from = await page.evaluate(() => window.__ebb.stats.sim);
   await page.keyboard.down(key);
-  await page.waitForTimeout(ms);
+  await until(([f, s]) => window.__ebb.stats.sim - f >= s, [from, seconds], 60000);
   await page.keyboard.up(key);
-  await page.waitForTimeout(150);
+};
+/** Hold a key until `test` is true in the page. */
+const holdUntil = async (key, test, timeout = 15000) => {
+  await page.keyboard.down(key);
+  const ok = await until(test, null, timeout);
+  await page.keyboard.up(key);
+  return ok;
 };
 const state = () =>
   page.evaluate(() => {
@@ -42,7 +62,7 @@ const state = () =>
     return {
       x: e.player.x,
       z: e.player.z,
-      y: e.player.y,
+      sim: e.stats.sim,
       seated: e.player.seat !== null,
       lapse: e.clock.lapse,
       farLit: e.lamps.farLit,
@@ -52,48 +72,45 @@ const state = () =>
       tide: e.U.uTide.value,
     };
   });
+/** Metres covered per second of stepped time while `keys` are held. */
+const speed = async (keys, seconds) => {
+  for (const k of keys.slice(0, -1)) await page.keyboard.down(k);
+  const a = await state();
+  await holdFor(keys[keys.length - 1], seconds);
+  const b = await state();
+  for (const k of keys.slice(0, -1)) await page.keyboard.up(k);
+  return Math.hypot(b.x - a.x, b.z - a.z) / (b.sim - a.sim);
+};
 
-// walking, from the starting place in front of the bench
+// walking and running, from the starting place in front of the bench
 await open('day=5.27&run');
-const a = await state();
-await hold('w', 1200);
-const b = await state();
-const walked = Math.hypot(b.x - a.x, b.z - a.z);
-check('walking forward moves the walker', walked > 1.2 && walked < 3.5, `${walked.toFixed(2)} m in 1.2 s`);
-await hold('Shift', 50);
-await page.keyboard.down('Shift');
-await hold('w', 1000);
-await page.keyboard.up('Shift');
-const c = await state();
-check('running is faster', Math.hypot(c.x - b.x, c.z - b.z) > 3, `${Math.hypot(c.x - b.x, c.z - b.z).toFixed(2)} m in 1 s`);
+const walk = await speed(['w'], 1.2);
+check('walking forward moves the walker', walk > 1.4 && walk < 2.1, `${walk.toFixed(2)} m/s`);
+const run = await speed(['Shift', 'w'], 1.0);
+check('running is faster', run > 3.5 && run < 5.2, `${run.toFixed(2)} m/s`);
 
 // the bench: back up to it, sit, and time runs faster; move, and stand again
 await open('day=5.27&run');
-await hold('s', 450);
-const nearBench = await state();
-check('the bench offers a seat', nearBench.hint.includes('sit'), nearBench.hint);
+check('the bench offers a seat', await holdUntil('s', () => document.getElementById('hint').textContent.includes('sit'), 10000), (await state()).hint);
 await page.keyboard.press('e');
-await page.waitForTimeout(2500);
-const sat = await state();
-check('E sits down', sat.seated);
-check('time runs faster while sitting', sat.lapse > 5, `x${sat.lapse.toFixed(1)}`);
-await hold('w', 300);
-const stood = await state();
-check('moving stands up again', !stood.seated);
+check('E sits down', await until(() => window.__ebb.player.seat !== null));
+const fast = await until(() => window.__ebb.clock.lapse > 5, null, 30000);
+check('time runs faster while sitting', fast, `x${(await state()).lapse.toFixed(1)}`);
+check('moving stands up again', await holdUntil('w', () => window.__ebb.player.seat === null));
 
 // the walls of the house keep the walker out: walk at the window wall from in front of it
 await open('day=5.27&cam=-33.5,15.6,-65,0');
 const w0 = await state();
-await hold('w', 2500);
+await holdFor('w', 2.5);
 const w1 = await state();
-check('the house wall stops the walker', Math.hypot(w1.x - w0.x, w1.z - w0.z) < 2.2, `${Math.hypot(w1.x - w0.x, w1.z - w0.z).toFixed(2)} m in 2.5 s against the wall`);
+const through = Math.hypot(w1.x - w0.x, w1.z - w0.z);
+check('the house wall stops the walker', through < 2.2, `${through.toFixed(2)} m in 2.5 s against the wall`);
 
 // the shelf
 await open('day=5.27&cam=-29.6,12.6,-65,0');
-const atShelf = await state();
-check('the shelf can be looked at', atShelf.hint.includes('shelf'), atShelf.hint);
+check('the shelf can be looked at', await until(() => document.getElementById('hint').textContent.includes('shelf')), (await state()).hint);
 await page.keyboard.press('e');
-await page.waitForTimeout(300);
+await until(() => document.getElementById('note').classList.contains('on'));
 const reading = await state();
 check('E shows what was left there', reading.note.includes('feather'), reading.note.slice(0, 40).replace(/\n/g, ' '));
 
@@ -101,31 +118,36 @@ check('E shows what was left there', reading.note.includes('feather'), reading.n
 const far = reading.far;
 await page.evaluate(() => localStorage.removeItem('ebb.farLamp'));
 await open(`day=5.27&cam=${far.x + 1.5},${far.z + 0.5},90,0`);
+await until(() => window.__ebb.stats.frames > 10);
 const covered = await state();
 check('on an ordinary low the far lamp cannot be lit', !covered.hint.includes('lamp') && !covered.farLit, `tide ${covered.tide.toFixed(2)}`);
 await open(`day=0.272&cam=${far.x + 1.5},${far.z + 0.5},90,0`);
+const offered = await until(() => document.getElementById('hint').textContent.includes('light the lamp'));
 const clear = await state();
-check('at the great low it offers to be lit', clear.hint.includes('light the lamp'), `tide ${clear.tide.toFixed(2)}: ${clear.hint}`);
+check('at the great low it offers to be lit', offered, `tide ${clear.tide.toFixed(2)}: ${clear.hint}`);
 await page.keyboard.press('e');
-await page.waitForTimeout(300);
-check('E lights it', (await state()).farLit);
+check('E lights it', await until(() => window.__ebb.lamps.farLit));
 await open('day=5.27');
-check('and it stays lit on the next visit', (await state()).farLit);
+check('and it stays lit on the next visit', await until(() => window.__ebb.lamps.farLit, null, 5000));
 await page.evaluate(() => localStorage.removeItem('ebb.farLamp'));
 
 // sound: after a key press the island can be heard, the jackdaws call before their first flight, and nothing clips
 await open('day=5.3&run');
-await hold('w', 1500);
+await holdFor('w', 2.5);
+check('sound starts with the first key press', await until(() => window.__ebb.sound.running, null, 5000));
+check('footsteps are heard when walking', await page.evaluate(() => window.__ebb.sound.steps >= 2), `${await page.evaluate(() => window.__ebb.sound.steps)} steps`);
+check('the jackdaws call', await until(() => window.__ebb.sound.calls >= 4, null, 60000), `${await page.evaluate(() => window.__ebb.sound.calls)} calls`);
 let peak = 0;
-for (let i = 0; i < 90; i++) {
+for (let i = 0; i < 40; i++) {
   peak = Math.max(peak, await page.evaluate(() => window.__ebb.sound.level()));
   await page.waitForTimeout(100);
 }
-const heard = await page.evaluate(() => ({ running: window.__ebb.sound.running, calls: window.__ebb.sound.calls, steps: window.__ebb.sound.steps }));
-check('sound starts with the first key press', heard.running);
-check('footsteps are heard when walking', heard.steps >= 2, `${heard.steps} steps`);
-check('the jackdaws call', heard.calls >= 4, `${heard.calls} calls in nine seconds`);
 check('the sound is neither silent nor clipping', peak > 0.003 && peak < 0.98, `peak ${peak.toFixed(3)}`);
+
+// the sky: the real stars are in it
+await open('day=20.0');
+const sky = await page.evaluate(() => ({ gain: window.__ebb.U.uStarGain.value, map: !!window.__ebb.U.uStarMap.value }));
+check('at night the real stars are shown', sky.gain > 0 && sky.map);
 
 check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
