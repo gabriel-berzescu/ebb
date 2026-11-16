@@ -1,0 +1,127 @@
+import { distanceToHeight, profile } from './shape';
+
+/**
+ * Where the made things stand. Positions that depend on the tide are found by height, not by coordinate: a stone that
+ * should dry at a certain low water is placed where the sand is at that height.
+ */
+
+const WEST = Math.PI;
+
+/** The house, near the top of the hill. Its window wall looks 25 degrees south of west, over the flats. */
+const houseX = -30;
+const houseZ = 14;
+const frontAngle = WEST - (25 * Math.PI) / 180; // bearing the window wall faces
+export const HOUSE = {
+  x: houseX,
+  z: houseZ,
+  /** Height of the floor and of the terrace the house stands on. */
+  floor: profile(houseX, houseZ),
+  /** Unit vector out of the window. */
+  front: [Math.cos(frontAngle), Math.sin(frontAngle)] as [number, number],
+  /** Unit vector along the window wall (to the right when looking out). */
+  side: [-Math.sin(frontAngle), Math.cos(frontAngle)] as [number, number],
+  /** Outside size: along the window wall, and front to back. */
+  width: 7.2,
+  depth: 5.0,
+  wall: 2.5,
+  thick: 0.45,
+};
+
+/** A point given in the house's own frame: `along` the window wall, `out` of the window, `up` from the floor. */
+export function housePoint(along: number, out: number, up = 0): [number, number, number] {
+  return [HOUSE.x + HOUSE.side[0] * along + HOUSE.front[0] * out, HOUSE.floor + up, HOUSE.z + HOUSE.side[1] * along + HOUSE.front[1] * out];
+}
+
+/** Turn that lines a box up with the house: its long side along the window wall. */
+export const HOUSE_YAW = frontAngle + Math.PI / 2;
+
+/** The flame of the lamp on the window sill. */
+export const LAMP = housePoint(1.3, HOUSE.depth / 2 - 0.12, 1.07);
+/** Where the eyes are when sitting on the bench outside, under the window wall. */
+export const BENCH_SEAT = housePoint(-1.7, HOUSE.depth / 2 + 0.36, 1.14);
+/** The middle of the shelf on the back wall inside. */
+export const SHELF = housePoint(1.2, -HOUSE.depth / 2 + HOUSE.thick + 0.13, 1.25);
+/** Where the i-th thing left on the shelf lies. */
+export function SHELF_ITEMS_AT(i: number): [number, number, number] {
+  return housePoint(0.6 + 0.34 * i, -HOUSE.depth / 2 + HOUSE.thick + 0.13, 1.25);
+}
+/** Just inside the doorway, on the lee side of the house. */
+export const DOOR = housePoint(-1.25, -HOUSE.depth / 2 - 1.2, 0);
+
+/** Heights of the sand where the twelve standing stones stand: each low water uncovers the row as far as its own depth. */
+export const STONE_HEIGHTS = [3.0, 1.6, 0.2, -1.2, -2.4, -3.4, -4.3, -5.0, -5.6, -6.2, -6.8, -7.25];
+/** The row runs due west from the island along z = ROW_Z. */
+export const ROW_Z = 0;
+
+export interface Stone {
+  index: number;
+  x: number;
+  z: number;
+  /** Height of the sand at its foot. */
+  ground: number;
+  /** How tall it stands above the sand. */
+  tall: number;
+}
+
+export const STONES: Stone[] = STONE_HEIGHTS.map((ground, index) => ({
+  index,
+  x: -distanceToHeight(WEST, ground),
+  z: ROW_Z,
+  ground,
+  tall: 3.1 + 1.1 * Math.abs(Math.sin(index * 12.9898)),
+}));
+
+/**
+ * The far lamp: a lantern on a low stone table, on sand only the great low uncovers. The great low reaches -7.64 and
+ * the next best spring -7.15, so a lantern at -7.38 is clear of the water twice in 35 days (one dusk and the dawn
+ * after it), for about five real minutes each time. At the next best springs it shows through 23 cm of water.
+ */
+export const FAR_LAMP_GROUND = -7.75;
+export const FAR_LAMP = { x: -distanceToHeight(WEST, FAR_LAMP_GROUND), z: ROW_Z, ground: FAR_LAMP_GROUND };
+/** The lantern itself must be clear of the water before it can be lit. */
+export const FAR_LAMP_FLAME = FAR_LAMP_GROUND + 0.37;
+
+/** The drowned walls and stairs, to the south-south-west, on sand that most low waters uncover. */
+const ruinsAngle = (105 * Math.PI) / 180;
+const ruinsR = distanceToHeight(ruinsAngle, -1.2);
+export const RUINS = { x: Math.cos(ruinsAngle) * ruinsR, z: Math.sin(ruinsAngle) * ruinsR, level: -1.2 };
+/** The stairs go down into a pit that never drains. */
+export const PIT = { x: RUINS.x + 9, z: RUINS.z + 5, depth: 3.2 };
+
+/** The causeway from the foot of the island to the ruins, as a bent line. */
+export const CAUSEWAY: [number, number][] = (() => {
+  const a0 = (118 * Math.PI) / 180;
+  const start: [number, number] = [Math.cos(a0) * 168, Math.sin(a0) * 168];
+  const end: [number, number] = [RUINS.x - 4, RUINS.z - 20];
+  const pts: [number, number][] = [];
+  const bends = [0, 9, -7, 6, -4, 0];
+  for (let i = 0; i < bends.length; i++) {
+    const f = i / (bends.length - 1);
+    const x = start[0] + (end[0] - start[0]) * f;
+    const z = start[1] + (end[1] - start[1]) * f;
+    // offset sideways (the line runs mostly south, so sideways is mostly east-west)
+    pts.push([x + bends[i], z]);
+  }
+  return pts;
+})();
+
+/** Distance from a point to the causeway line. */
+export function distanceToCauseway(x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 0; i + 1 < CAUSEWAY.length; i++) {
+    const [ax, az] = CAUSEWAY[i];
+    const [bx, bz] = CAUSEWAY[i + 1];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  }
+  return best;
+}
+
+/** Three wind-bent trees on the hill, leaning away from the west wind. */
+export const TREES: { x: number; z: number; size: number }[] = [
+  { x: -8, z: -22, size: 1.0 },
+  { x: 14, z: -6, size: 0.8 },
+  { x: -52, z: 38, size: 0.7 },
+];
