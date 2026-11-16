@@ -22,6 +22,7 @@ function waterMaterial(sea: boolean): THREE.ShaderMaterial {
     fragmentShader: /* glsl */ `
       ${COMMON_GLSL}
       uniform float uSea;
+      uniform vec3 uWalker;
       varying vec3 vPos;
       ${LOGDEPTH_PARS_FRAG}
 
@@ -96,6 +97,30 @@ function waterMaterial(sea: boolean): THREE.ShaderMaterial {
         alpha *= smoothstep(0.0, 0.015, edge);
 
         col = fogged(col, vPos);
+
+        // At night the water is full of small living lights. A few glimmer by themselves; many more flare where
+        // the water is stirred: round the legs of someone wading, and along the edge where the sea laps.
+        if (uNight > 0.05) {
+          // two sizes of point, each with its own brightness and its own slow flicker
+          float spark = 0.0;
+          float twinkle = 0.0;
+          for (int layer = 0; layer < 2; layer++) {
+            float sc = layer == 0 ? 13.0 : 29.0;
+            vec2 cell = floor(p * sc) + float(layer) * 91.0;
+            float rnd = hash12(cell);
+            vec2 at = fract(p * sc) - 0.5 - (vec2(hash12(cell + 3.1), hash12(cell + 7.7)) - 0.5) * 0.7;
+            float tw = 0.5 + 0.5 * sin(uTime * (1.2 + rnd * 4.0) + rnd * 50.0);
+            float one = smoothstep(0.05 + 0.09 * rnd * rnd, 0.0, length(at)) * step(0.4, rnd) * rnd * rnd;
+            spark += one * (0.35 + 0.65 * tw) * (1.0 - smoothstep(0.012, 0.06, foot * sc / 13.0));
+            twinkle += tw * 0.5;
+          }
+          vec2 toWalker = p - uWalker.xy;
+          float stir = uWalker.z * exp(-dot(toWalker, toWalker) / 2.4);
+          float lapping = uSea * smoothstep(0.2, 0.0, edge) * (0.4 + 0.6 * twinkle);
+          float living = uNight * (spark * (0.1 * twinkle * twinkle + 2.6 * stir + 0.8 * lapping) + 0.1 * stir);
+          col += vec3(0.1, 0.8, 0.66) * living * 0.9 / uExposure;
+          alpha = max(alpha, clamp(living * 1.5, 0.0, 1.0) * smoothstep(0.0, 0.015, edge));
+        }
         gl_FragColor = vec4(finish(col), alpha);
       }`,
     transparent: true,

@@ -13,6 +13,8 @@ const DAYS_RUN = 600;
 export class Interactions {
   private reading = -1;
   private satFor = 0;
+  /** Called when the far lamp is lit. */
+  onLit: (() => void) | null = null;
 
   constructor(
     private player: Player,
@@ -107,6 +109,7 @@ export class Interactions {
       this.hint('E  ·  light the lamp');
       if (act) {
         this.lamps.farLit = true;
+        this.onLit?.();
         try {
           localStorage.setItem(FAR_KEY, '1');
         } catch {

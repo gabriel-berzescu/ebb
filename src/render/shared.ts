@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { DAY, LATITUDE, SUN_RADIUS } from '../world/constants';
 import { ATMOS, luminance, skyRadiance, transmittance } from '../world/atmosphere';
 import { heavens, tideAt, wetLine, type Heavens, type Vec3 } from '../world/heavens';
-import { HOUSE } from '../world/layout';
+import { HOUSE, STONES } from '../world/layout';
 import { noise2, smoothstep } from '../world/noise';
 
 /** Brightness of the full moon against the sun. Far brighter than the real one, so that moonlit nights can be walked in. */
@@ -48,6 +48,11 @@ export const U = {
   uHousePos: { value: new THREE.Vector3(HOUSE.x, HOUSE.floor, HOUSE.z) },
   uHouseAxes: { value: new THREE.Vector4(HOUSE.side[0], HOUSE.side[1], HOUSE.front[0], HOUSE.front[1]) },
   uHouseSize: { value: new THREE.Vector3(HOUSE.width / 2 - HOUSE.thick, HOUSE.depth / 2 - HOUSE.thick, HOUSE.wall + 1.75) },
+  // the standing stones and the moon carved on each: (x, height of the carving, z) and (how full, how large)
+  uStones: { value: STONES.map((s) => new THREE.Vector3(s.x, s.ground + 1.5, s.z)) },
+  uMoons: { value: STONES.map((s) => new THREE.Vector2(s.lit, s.size)) },
+  // where the walker is, and how much they are stirring the water (for the light in the water at night)
+  uWalker: { value: new THREE.Vector3() },
 };
 
 export interface SkyState {

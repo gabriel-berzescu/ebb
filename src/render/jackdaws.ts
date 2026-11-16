@@ -34,6 +34,10 @@ class Bird {
   flight: Flight | null = null;
   /** Real seconds until it next thinks about moving. */
   wait = 0;
+  /** Real seconds until it next calls from its perch. */
+  callIn = 6;
+  /** Each bird has its own voice. */
+  readonly pitch: number;
   private yaw = 0;
   private yawTarget = 0;
   private phase = 0;
@@ -41,6 +45,7 @@ class Bird {
   private ahead = new THREE.Vector3();
 
   constructor(private seed: number) {
+    this.pitch = 0.94 + 0.07 * seed;
     const body = new Builder();
     body.lump([0, 0, 0], [0.075, 0.07, 0.19], BLACK, Kind.slate, 3 + seed, 0.08, [0, 0], 1);
     body.lump([0, 0.055, 0.125], [0.062, 0.052, 0.062], NAPE, Kind.slate, 5 + seed, 0.05, [0, 0], 1);
@@ -165,6 +170,13 @@ export class Jackdaws {
   private follow = -1;
   private followIn = 0;
   private tick = 0;
+  private wasDay = false;
+  /** Seconds left of the calling that comes before the first flight of the morning. */
+  private chorus = 0;
+  private chorusNext = 0;
+  private chorusTurn = 0;
+  /** Called whenever a bird calls: where it is, the pitch of its voice, and a delay in seconds. */
+  onCall: ((x: number, y: number, z: number, pitch: number, delay: number) => void) | null = null;
 
   constructor(terrain: Terrain) {
     const W = HOUSE.width;
@@ -210,6 +222,42 @@ export class Jackdaws {
     const [first, second] = this.birds;
     const day = sunHeight > -0.035;
     this.tick++;
+    const call = (b: Bird, delay = 0) => this.onCall?.(b.position.x, b.position.y, b.position.z, b.pitch * (0.96 + 0.08 * Math.random()), delay);
+
+    // First light. Jackdaws at a roost call back and forth, faster and faster, and when the calling is loud
+    // enough they all go at once: the roost takes a vote. Here there are two of them, and they agree.
+    let lift = false;
+    if (day && !this.wasDay && !first.flight && !second.flight && dt < 0.5) {
+      this.chorus = 7;
+      this.chorusNext = 0.4;
+    }
+    this.wasDay = day;
+    if (this.chorus > 0) {
+      this.chorus -= dt;
+      this.chorusNext -= dt;
+      if (this.chorusNext <= 0) {
+        call(this.birds[this.chorusTurn++ % 2]);
+        this.chorusNext = 0.22 + 1.3 * Math.max(0, this.chorus / 7) * (0.7 + 0.6 * Math.random());
+      }
+      first.wait = Math.max(first.wait, 0.01);
+      if (this.chorus <= 0) {
+        lift = true;
+        first.wait = 0;
+      } else first.wait = this.chorus + 1;
+    }
+
+    // from a perch, a call now and then through the day
+    if (day && this.chorus <= 0) {
+      for (const b of this.birds) {
+        if (b.flight) continue;
+        b.callIn -= dt;
+        if (b.callIn <= 0) {
+          call(b);
+          if (Math.random() < 0.4) call(b, 0.17);
+          b.callIn = 9 + Math.random() * 26;
+        }
+      }
+    }
 
     const free = (i: number) => this.perches[i].dryBelow > tide && this.birds.every((b) => b.perch !== i && b.flight?.perch !== i);
     const choose = (seed: number): number => {
@@ -241,14 +289,18 @@ export class Jackdaws {
       if (!day && !atRoost) target = this.roost[0];
       else if (day && first.wait <= 0) {
         target = choose(3);
-        // now and then, a turn or two about the hill before coming down
-        circuit = rand2(this.tick, 9, 52) > 0.6 ? 1 + Math.floor(rand2(this.tick, 10, 52) * 2) : 0;
+        // now and then, a turn or two about the hill before coming down; always after the morning's calling
+        circuit = lift ? 2 : rand2(this.tick, 9, 52) > 0.6 ? 1 + Math.floor(rand2(this.tick, 10, 52) * 2) : 0;
       }
       // a stone the tide is about to cover is no place to stay
       if (target < 0 && this.perches[first.perch].dryBelow <= tide) target = choose(4);
       if (target >= 0) {
         first.flyTo(first.position, this.perches[target], target, circuit);
         first.wait = 14 + rand2(this.tick, 11, 53) * 38;
+        // a call on leaving, and the mate answers
+        call(first);
+        call(first, 0.16);
+        call(second, 0.42);
         // the mate goes too, a moment later, to the nearest free place
         this.follow = !day ? this.roost[1] : neighbour(target);
         this.followIn = 0.5 + rand2(this.tick, 12, 54) * 1.2;

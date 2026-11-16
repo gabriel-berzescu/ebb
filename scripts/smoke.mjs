@@ -113,6 +113,20 @@ await open('day=5.27');
 check('and it stays lit on the next visit', (await state()).farLit);
 await page.evaluate(() => localStorage.removeItem('ebb.farLamp'));
 
+// sound: after a key press the island can be heard, the jackdaws call before their first flight, and nothing clips
+await open('day=5.3&run');
+await hold('w', 1500);
+let peak = 0;
+for (let i = 0; i < 90; i++) {
+  peak = Math.max(peak, await page.evaluate(() => window.__ebb.sound.level()));
+  await page.waitForTimeout(100);
+}
+const heard = await page.evaluate(() => ({ running: window.__ebb.sound.running, calls: window.__ebb.sound.calls, steps: window.__ebb.sound.steps }));
+check('sound starts with the first key press', heard.running);
+check('footsteps are heard when walking', heard.steps >= 2, `${heard.steps} steps`);
+check('the jackdaws call', heard.calls >= 4, `${heard.calls} calls in nine seconds`);
+check('the sound is neither silent nor clipping', peak > 0.003 && peak < 0.98, `peak ${peak.toFixed(3)}`);
+
 check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');

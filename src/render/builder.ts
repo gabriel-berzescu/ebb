@@ -142,6 +142,8 @@ function builtMaterial(): THREE.ShaderMaterial {
     fragmentShader: /* glsl */ `
       ${COMMON_GLSL}
       uniform float uFarLit;
+      uniform vec3 uStones[12];
+      uniform vec2 uMoons[12];
       varying vec3 vPos;
       varying vec3 vNormal;
       varying vec3 vColor;
@@ -179,10 +181,28 @@ function builtMaterial(): THREE.ShaderMaterial {
             }
             // the sea marks everything it covers: weed low down, a pale band of barnacles above it
             float weed = smoothstep(4.6, 1.2, vPos.y + (g1 - 0.5) * 1.8) * (vKind > 5.5 ? 0.35 + 0.6 * smoothstep(0.35, 0.6, g1) : 1.0);
-            albedo = mix(albedo, vec3(0.09, 0.10, 0.035) * (0.7 + 0.6 * g2), weed * 0.9);
+            albedo = mix(albedo, vec3(0.055, 0.062, 0.03) * (0.7 + 0.6 * g2), weed * 0.9);
             albedo = mix(albedo, vec3(0.50, 0.48, 0.43), smoothstep(1.0, 0.0, abs(vPos.y - 5.6)) * step(0.5, g2) * 0.45);
             float wet = 1.0 - smoothstep(uTide, max(uWetLine, uTide + 0.05), vPos.y);
             albedo *= mix(1.0, 0.6, wet);
+            if (vKind < 0.5 && normalize(vNormal).x > 0.2) {
+              // On the landward face of each standing stone a moon is pecked into the rock: as full, and as large,
+              // as the moon must be before the sea will leave that stone. Beside it, on the stones that need a
+              // moon nearly full, the same circle left empty: the new moon pulls as hard.
+              for (int i = 0; i < 12; i++) {
+                vec3 d = vPos - uStones[i];
+                if (abs(d.x) > 1.3 || abs(d.z) > 0.9 || abs(d.y) > 0.5) continue;
+                float full = uMoons[i].x;
+                float R = 0.17 * (0.55 + 2.4 * (uMoons[i].y - 0.89));
+                vec2 m = (d.zy - vec2(-0.17, 0.0)) / R;
+                float r = length(m);
+                float litPart = smoothstep(1.0, 0.93, r) * smoothstep(-0.05, 0.05, m.x - (1.0 - 2.0 * full) * sqrt(max(1.0 - m.y * m.y, 0.0)));
+                float rim = smoothstep(0.12, 0.04, abs(r - 1.0));
+                float twin = smoothstep(0.12, 0.04, abs(length((d.zy - vec2(0.3, 0.0)) / R) - 1.0)) * smoothstep(0.6, 0.72, full);
+                float carved = max(max(litPart * (0.6 + 0.4 * g2), rim), twin);
+                albedo = mix(albedo, vec3(0.5, 0.48, 0.43) * mix(1.0, 0.6, wet), carved * 0.85);
+              }
+            }
           } else if (vKind < 1.5) {
             albedo *= 0.78 + 0.3 * vnoise(vPos.xz * vec2(2.2, 7.0) + vPos.y * 5.0);
           } else if (vKind < 2.5) {

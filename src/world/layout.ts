@@ -1,3 +1,4 @@
+import { ECC, TIDE_MOON, TIDE_SUN } from './constants';
 import { distanceToHeight, profile } from './shape';
 
 /**
@@ -61,6 +62,25 @@ export interface Stone {
   ground: number;
   /** How tall it stands above the sand. */
   tall: number;
+  /**
+   * The moon carved on its landward face. `lit` is how full the moon must at least be for the sea to leave this stone
+   * (0.5 means even a half moon will do), `size` how large it must at least look (1 is its mean size).
+   */
+  lit: number;
+  size: number;
+}
+
+/** What moon the sea needs before a low water falls to `ground`. Worked out from the same rule as the tide itself. */
+function moonFor(ground: number): { lit: number; size: number } {
+  const depth = -ground;
+  const nearest = TIDE_MOON / Math.pow(1 - ECC, 3);
+  // how far from full (or new) the moon may be, when it is at its nearest
+  const c = (depth * depth - nearest * nearest - TIDE_SUN * TIDE_SUN) / (2 * nearest * TIDE_SUN);
+  const lit = depth <= 0 || c <= -1 ? 0.5 : (1 + Math.cos(Math.acos(Math.min(1, c)) / 2)) / 2;
+  // how near the moon must be, when it is exactly full (or new)
+  const farthest = 1 + ECC;
+  const distance = depth - TIDE_SUN <= 0 ? farthest : Math.min(farthest, Math.cbrt(TIDE_MOON / (depth - TIDE_SUN)));
+  return { lit, size: 1 / distance };
 }
 
 export const STONES: Stone[] = STONE_HEIGHTS.map((ground, index) => ({
@@ -69,6 +89,7 @@ export const STONES: Stone[] = STONE_HEIGHTS.map((ground, index) => ({
   z: ROW_Z,
   ground,
   tall: 3.1 + 1.1 * Math.abs(Math.sin(index * 12.9898)),
+  ...moonFor(ground),
 }));
 
 /**

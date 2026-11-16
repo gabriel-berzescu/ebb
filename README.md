@@ -7,6 +7,10 @@ sea pulls back a kilometre and the rest of the world appears: a causeway, drowne
 stones, and wet sand that mirrors the sky. There are no enemies, no quests and no map. The things to do are look, and
 learn the water's timetable.
 
+**Walk it here: https://gabriel-berzescu.github.io/ebb/**
+
+![Before sunrise on the first morning: the full moon setting over the flats](docs/first-morning.png)
+
 ![The island at dusk on a spring low](docs/dusk.png)
 
 ![The far lamp, uncovered at the great low](docs/great-low.png)
@@ -35,6 +39,7 @@ npm run build
 | W A S D | walk |
 | Shift | run; while sitting, let the days run |
 | E | sit on the bench, look at the shelf, light the lamp |
+| M | sound off and on |
 
 A gamepad works too: left stick walks, right stick looks, A is E, the right trigger runs.
 
@@ -57,8 +62,22 @@ the whole rule, and `src/world/heavens.ts` is thirty lines of it.
 water uncovers the row as far as its own depth: three stones on a weak day, eleven on a strong one. Beyond the twelfth
 there is a lantern on a low table of stone.
 
+Each stone has a moon pecked into its landward face: as full, and as large, as the moon must be before the sea will
+leave that stone. Beside it, on the stones that need a moon nearly full, the same circle is left empty, because the new
+moon pulls as hard as the full one. The carvings are worked out from the tide rule, not drawn by hand.
+
+![The twelfth stone](docs/stone.png)
+
 **Pools.** When the tide falls, water stays where the ground holds it. The pools and stranded channels are worked out
 from the shape of the ground (`floodFill` in `src/world/terrain.ts`), not painted on.
+
+**At night** the water is full of small living lights. A few glimmer by themselves; many more flare where the water is
+stirred, round the legs of someone wading and along the edge where the sea laps.
+
+**Sound.** Everything heard is made on the spot from noise and a few oscillators: wind that gusts and is stronger on
+the hill, the wash of the sea growing as you near it, footsteps that change with what is underfoot (grass, shingle,
+wet sand, water, stone), and the jackdaws. At first light the pair on the chimney call back and forth, faster and
+faster, and then lift together. Real jackdaw roosts do this: the calling is how they agree when to go.
 
 ## The shelf
 
@@ -80,7 +99,7 @@ src/world/    the island itself: time, sun and moon, tide, the shape of the grou
               No renderer is imported here; any engine could draw this.
 src/render/   drawing it with three.js: one sky function shared by the dome, the sea and the wet sand,
               which is why the flats mirror the sky exactly.
-src/game/     walking, sitting, the shelf, the lamp.
+src/game/     walking, sitting, the shelf, the lamp, and everything heard.
 tests/        the world's rules, checked: the great low comes every 35 days, the far lamp is clear of
               the water only then, pools fill to their rims.
 scripts/      shot.mjs and tour.mjs take screenshots through headless Chrome (see chrome.mjs for why the
@@ -88,17 +107,14 @@ scripts/      shot.mjs and tour.mjs take screenshots through headless Chrome (se
 ```
 
 Useful addresses while working: `?day=5.27` freezes the world at that day and hour (5.27 is about half past six on
-day 5), `&cam=x,z,yaw,pitch` puts the camera somewhere, `&sit=1` starts on the bench, `&lit=1` lights the far lamp,
-`&run` lets a frozen world move.
+day 5), `&cam=x,z,yaw,pitch` puts the camera somewhere, `&stone=9` stands in front of the ninth stone, `&sit=1` starts on the
+bench, `&lit=1` lights the far lamp, `&run` lets a frozen world move.
 
 ## Not there yet
 
-- Sound. The island is silent: no wind, no water, no jackdaw calls.
-- Touch controls, for phones.
-- Marks on the standing stones that say, without words, which moon uncovers which stone.
-- The glow in the pools at night.
-- An Unreal Engine version. The world in `src/world` is engine-neutral on purpose; the height map and the tide rule
-  carry over as they are.
+- The sounds were made without anyone having listened to them yet. Their levels are checked by `npm run smoke`, their
+  character is not.
+- It needs a keyboard and mouse, or a gamepad. There are no touch controls.
 
 ## Who made it
 
