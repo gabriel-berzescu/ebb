@@ -23,6 +23,7 @@ Or, for work on the code:
 npm install
 npm run dev        # http://127.0.0.1:5241/
 npm test           # the world's own rules: sky, tide, ground
+npm run smoke      # walks the island by keyboard: bench, shelf, far lamp (dev server must be running)
 npm run build
 ```
 

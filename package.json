@@ -11,7 +11,9 @@
     "preview": "vite preview --port 5240 --strictPort",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "shot": "node scripts/shot.mjs"
+    "shot": "node scripts/shot.mjs",
+    "tour": "node scripts/tour.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
