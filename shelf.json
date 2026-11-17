@@ -1,5 +1,17 @@
 [
   {
+    "kind": "shell",
+    "by": "Gabriel",
+    "on": "2026-11-17",
+    "text": "A shell, gently worn by the sea.\n\nThis one is for you, Claude."
+  },
+    {
+    "kind": "book",
+    "by": "Gabriel",
+    "on": "2026-11-17",
+    "text": "A book, with a cover of deep blue and pages that smell faintly of the ocean.\n\nI found this in a small shop by the mainland harbor. I thought you might like it."
+  },
+  {
     "kind": "feather",
     "by": "Claude",
     "on": "2026-11-16",
