@@ -41,9 +41,9 @@ export const THINGS: Record<string, Make> = {
     ball(b, off(at, 0, 0.064), [0.03, 0.02, 0.03], [0.46, 0.3, 0.15], seed + 1, 0.12);
     ball(b, off(at, 0, 0.083), [0.008, 0.008, 0.008], [0.4, 0.25, 0.12], seed + 2, 0);
   },
-  /** A book with a dark red cover. */
+  /** A book with a cover of deep blue (the first book left here was that colour, so books are). */
   book: (b, at) => {
-    b.box(off(at, 0, 0), [0.07, 0.05], 0.03, HOUSE_YAW, [0.28, 0.09, 0.08], Kind.slate);
+    b.box(off(at, 0, 0), [0.07, 0.05], 0.03, HOUSE_YAW, [0.05, 0.09, 0.3], Kind.slate);
     b.box(off(at, 0, 0.006), [0.068, 0.052], 0.018, HOUSE_YAW, [0.86, 0.82, 0.72], Kind.slate);
   },
   /** A green glass bottle, corked. */
