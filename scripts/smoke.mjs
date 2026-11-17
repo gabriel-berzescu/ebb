@@ -9,6 +9,9 @@
  * a second apart, so every check waits for the thing it is checking, and speeds are measured against the time the
  * world was actually stepped through (window.__ebb.stats.sim).
  */
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { launchChrome } from './chrome.mjs';
 
 const port = process.argv.includes('--port') ? process.argv[process.argv.indexOf('--port') + 1] : '5241';
@@ -148,7 +151,9 @@ check('the shelf can be looked at', await until(() => document.getElementById('h
 await page.keyboard.press('e');
 await until(() => document.getElementById('note').classList.contains('on'));
 const reading = await state();
-check('E shows what was left there', reading.note.includes('feather'), reading.note.slice(0, 40).replace(/\n/g, ' '));
+// (whatever lies first on the shelf: the shelf is other people's to fill)
+const first = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'shelf.json'), 'utf8'))[0];
+check('E shows what was left there', reading.note.startsWith(first.text) && reading.note.includes(first.by), reading.note.slice(0, 40).replace(/\n/g, ' '));
 
 // the far lamp: under water on an ordinary day, clear at the great low
 const far = reading.far;
