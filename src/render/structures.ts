@@ -63,6 +63,8 @@ export function buildStructures(terrain: Terrain, shelf: ShelfItem[]): Built {
       b.tri(housePoint(a, -D / 2, H), housePoint(a, D / 2, H), housePoint(a, 0, RIDGE - 0.06), WALL, Kind.wall);
     }
   }
+  // (the roof as something to bump the head on: jumping indoors stops at the rafters)
+  solids.push({ x: HOUSE.x, z: HOUSE.z, hx: W / 2, hz: D / 2, yaw: HOUSE_YAW, y0: HOUSE.floor + 2.45, y1: HOUSE.floor + RIDGE, roof: true });
   // roof of slate: two slopes
   {
     const over = 0.28;

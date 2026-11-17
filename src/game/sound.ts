@@ -245,6 +245,12 @@ export class Sound {
     s.stop(t + 0.05);
   }
 
+  /** Feet coming down from a jump: one heavier footfall. */
+  land(surface: Surface): void {
+    this.step(surface, true);
+    this.burst('lowpass', 160, 0.6, 0.12, 0.004, 0.09);
+  }
+
   /** The far lamp catching: a soft breath and a low warm tone. */
   lampLit(): void {
     const ctx = this.ctx;

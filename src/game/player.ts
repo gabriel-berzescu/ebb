@@ -12,6 +12,8 @@ export interface Solid {
   /** Bottom and top heights. */
   y0: number;
   y1: number;
+  /** A roof: nothing to walk into or stand on, only something to bump the head on from below. */
+  roof?: boolean;
 }
 
 export interface Controls {
@@ -19,6 +21,8 @@ export interface Controls {
   moveX: number;
   moveZ: number;
   run: boolean;
+  /** True while the jump key is held: holding it keeps the walker hopping. */
+  jump: boolean;
   /** Look deltas in radians accumulated since the last update. */
   lookX: number;
   lookY: number;
@@ -29,6 +33,11 @@ const RADIUS = 0.3;
 const STEP = 0.5;
 /** Depth of water at which the walker floats. */
 const FLOAT_DEPTH = 1.35;
+/** A jump: the speed the feet leave the ground at, and the pull that brings them back. It rises one metre. */
+const JUMP = 6;
+const GRAVITY = 18;
+/** In the air a leap covers ground faster than a stride does (Silviu's rule). */
+const LEAP = 1.3;
 
 export class Player {
   x = 0;
@@ -38,6 +47,12 @@ export class Player {
   yaw = 0;
   pitch = 0;
   swimming = false;
+  /** True from the moment a jump leaves the ground until the feet come down again. */
+  airborne = false;
+  /** True only on the update in which a jump began, and the one in which it ended. */
+  jumped = false;
+  landed = false;
+  private vy = 0;
   /** When set, the walker is seated: eye position fixed, only looking around. */
   seat: { x: number; y: number; z: number } | null = null;
 
@@ -52,6 +67,8 @@ export class Player {
     this.yaw = yaw;
     this.pitch = pitch;
     this.y = this.floorAt(x, z, Infinity);
+    this.vy = 0;
+    this.airborne = false;
   }
 
   /** Yaw that looks along (dx, dz). */
@@ -63,7 +80,7 @@ export class Player {
   private floorAt(x: number, z: number, feet: number): number {
     let top = this.terrain.heightAt(x, z);
     for (const s of this.solids) {
-      if (s.y1 > feet + STEP || s.y1 < top) continue;
+      if (s.roof || s.y1 > feet + STEP || s.y1 < top) continue;
       const c = Math.cos(s.yaw);
       const sn = Math.sin(s.yaw);
       const dx = x - s.x;
@@ -78,7 +95,7 @@ export class Player {
   /** Push the walker out of anything too tall to step onto. */
   private collide(): void {
     for (const s of this.solids) {
-      if (s.y1 <= this.y + STEP || s.y0 >= this.y + EYE + 0.1) continue;
+      if (s.roof || s.y1 <= this.y + STEP || s.y0 >= this.y + EYE + 0.1) continue;
       const c = Math.cos(s.yaw);
       const sn = Math.sin(s.yaw);
       const dx = this.x - s.x;
@@ -95,9 +112,25 @@ export class Player {
     }
   }
 
+  /** Height of the lowest roof over a point, or Infinity under the open sky. */
+  private roofOver(x: number, z: number): number {
+    let low = Infinity;
+    for (const s of this.solids) {
+      if (!s.roof) continue;
+      const c = Math.cos(s.yaw);
+      const sn = Math.sin(s.yaw);
+      const dx = x - s.x;
+      const dz = z - s.z;
+      if (Math.abs(dx * c + dz * sn) <= s.hx && Math.abs(-dx * sn + dz * c) <= s.hz) low = Math.min(low, s.y0);
+    }
+    return low;
+  }
+
   update(dt: number, c: Controls, tide: number): void {
     this.yaw -= c.lookX;
     this.pitch = Math.min(1.45, Math.max(-1.45, this.pitch - c.lookY));
+    this.jumped = false;
+    this.landed = false;
     if (this.seat) return;
 
     const groundHere = this.terrain.heightAt(this.x, this.z);
@@ -108,6 +141,7 @@ export class Player {
     let speed = c.run ? 4.4 : 1.75;
     if (this.swimming) speed = c.run ? 1.6 : 1.1;
     else if (depth > 0.15) speed *= 1 - 0.55 * Math.min(1, (depth - 0.15) / 1.0);
+    if (this.airborne) speed *= LEAP;
 
     const len = Math.hypot(c.moveX, c.moveZ);
     if (len > 0.01) {
@@ -126,10 +160,36 @@ export class Player {
 
     let target = this.floorAt(this.x, this.z, this.y);
     const w = this.terrain.waterAt(this.x, this.z, tide);
-    if (w - target > FLOAT_DEPTH) target = w - FLOAT_DEPTH;
-    // feet follow the ground quickly going up, and fall a little more slowly
-    const rate = target > this.y ? 14 : 9;
-    this.y += (target - this.y) * Math.min(1, dt * rate);
+    const afloat = w - target > FLOAT_DEPTH;
+    if (afloat) target = w - FLOAT_DEPTH;
+
+    if (this.airborne) {
+      this.vy -= GRAVITY * dt;
+      this.y += this.vy * dt;
+      // a roof stops a jump short
+      const head = this.roofOver(this.x, this.z) - EYE - 0.15;
+      if (this.y > head && this.vy > 0) {
+        this.y = head;
+        this.vy = 0;
+      }
+      if (this.y <= target && (this.vy <= 0 || this.y < target - 0.3)) {
+        this.y = target;
+        this.vy = 0;
+        this.airborne = false;
+        this.landed = true;
+      }
+    } else {
+      // feet follow the ground quickly going up, and fall a little more slowly
+      const rate = target > this.y ? 14 : 9;
+      this.y += (target - this.y) * Math.min(1, dt * rate);
+    }
+
+    // Taking off: from the ground or from shallow water, never when afloat. Wading deep, the jump is a small one.
+    if (c.jump && !this.airborne && !afloat && this.y - target < 0.08) {
+      this.vy = JUMP * (w - target > 0.4 ? 0.6 : 1);
+      this.airborne = true;
+      this.jumped = true;
+    }
   }
 
   /** Eye position. */

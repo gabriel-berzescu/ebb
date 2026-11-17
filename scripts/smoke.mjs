@@ -89,6 +89,34 @@ check('walking forward moves the walker', walk > 1.4 && walk < 2.1, `${walk.toFi
 const run = await speed(['Shift', 'w'], 1.0);
 check('running is faster', run > 3.5 && run < 5.2, `${run.toFixed(2)} m/s`);
 
+// jumping (Silviu asked for it): Space lifts the feet a metre, and hopping along covers ground faster than running
+await open('day=5.27&run');
+await page.keyboard.down('Space');
+const rose = await until(() => {
+  const e = window.__ebb;
+  window.__top = Math.max(window.__top ?? 0, e.player.y - e.terrain.heightAt(e.player.x, e.player.z));
+  return window.__top > 0.8;
+}, null, 8000);
+await page.keyboard.up('Space');
+check('Space jumps', rose, `${(await page.evaluate(() => window.__top)).toFixed(2)} m off the ground`);
+check('and the feet come down again', await until(() => !window.__ebb.player.airborne, null, 8000));
+const hop = await speed(['Shift', 'Space', 'w'], 2.0);
+check('hopping along is faster than running', hop > run * 1.1, `${hop.toFixed(2)} m/s against ${run.toFixed(2)}`);
+await until(() => !window.__ebb.player.airborne, null, 8000);
+
+// indoors a jump stops at the rafters
+await open('day=5.27&cam=-30.2,13.5,25,0');
+await page.keyboard.down('Space');
+await until(() => window.__ebb.player.airborne, null, 5000);
+await until(() => {
+  const e = window.__ebb;
+  window.__in = Math.max(window.__in ?? 0, e.player.y - e.terrain.heightAt(e.player.x, e.player.z));
+  return !e.player.airborne;
+}, null, 8000);
+await page.keyboard.up('Space');
+const indoor = await page.evaluate(() => window.__in);
+check('indoors a jump stops at the rafters', indoor > 0.2 && indoor < 0.8, `${indoor.toFixed(2)} m`);
+
 // the bench: back up to it, sit, and time runs faster; move, and stand again
 await open('day=5.27&run');
 check('the bench offers a seat', await holdUntil('s', () => document.getElementById('hint').textContent.includes('sit'), 10000), (await state()).hint);

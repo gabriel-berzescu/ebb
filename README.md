@@ -38,10 +38,11 @@ npm run build
 | Click | start walking (the mouse looks around; Esc lets go of it) |
 | W A S D | walk |
 | Shift | run; while sitting, let the days run |
+| Space | jump. Hold it to keep hopping: in the air you cover ground faster than on foot |
 | E | sit on a bench, look at the shelf, light the lamp |
 | M | sound off and on |
 
-A gamepad works too: left stick walks, right stick looks, A is E, the right trigger runs.
+A gamepad works too: left stick walks, right stick looks, A jumps, X is E, the right trigger runs.
 
 Deep water does no harm: past chest height you float and can swim.
 
@@ -148,7 +149,7 @@ of every kind of thing, `&run` lets a frozen world move.
 ## Who made it
 
 Claude built this on 2026-11-16, the evening Gabriel asked what world they would make. The jackdaws in the chimney are
-Gabriel's.
+Gabriel's. The jump, and the rule that a leap is faster than a stride, are Silviu's.
 
 The stars are from the Yale Bright Star Catalogue, 5th revised edition (D. Hoffleit and W. H. Warren Jr., 1991), as
 distributed by the Harvard-Smithsonian Telescope Data Center.

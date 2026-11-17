@@ -117,6 +117,7 @@ let padActWas = false;
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' && !e.repeat) act = true;
   if (e.code === 'KeyM' && !e.repeat) sound.toggleMute();
+  if (e.code === 'Space') e.preventDefault();
   sound.start();
   keys.add(e.code);
 });
@@ -139,6 +140,7 @@ function readControls(dt: number): Controls {
   let moveX = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
   let moveZ = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
   let run = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  let jump = keys.has('Space');
   const pad = navigator.getGamepads?.().find((g) => g && g.connected);
   if (pad) {
     const dead = (v: number) => (Math.abs(v) < 0.14 ? 0 : v);
@@ -151,11 +153,12 @@ function readControls(dt: number): Controls {
       titleEl.classList.add('gone');
       sound.start();
     }
-    const padAct = !!pad.buttons[0]?.pressed;
+    jump = jump || !!pad.buttons[0]?.pressed;
+    const padAct = !!pad.buttons[2]?.pressed;
     if (padAct && !padActWas) act = true;
     padActWas = padAct;
   }
-  const c: Controls = { moveX, moveZ, run, lookX, lookY };
+  const c: Controls = { moveX, moveZ, run, jump, lookX, lookY };
   lookX = 0;
   lookY = 0;
   return c;
@@ -197,7 +200,7 @@ function frame(now: number): void {
 
   const state = updateShared(clock.t, realTime, dt);
   const controls = readControls(dt);
-  interactions.update(dt, state.tide, act, Math.hypot(controls.moveX, controls.moveZ) > 0.3, controls.run);
+  interactions.update(dt, state.tide, act, Math.hypot(controls.moveX, controls.moveZ) > 0.3 || controls.jump, controls.run);
   act = false;
   player.update(dt, controls, state.tide);
   lamps.update(realTime, state.tide);
@@ -209,6 +212,7 @@ function frame(now: number): void {
   const depthHere = Math.max(0, terrain.waterAt(player.x, player.z, state.tide) - feetGround);
   const moved = Math.hypot(player.x - lastX, player.z - lastZ);
   const walked = interactions.sitting || moved > 1 ? 0 : moved;
+  const strode = player.airborne ? 0 : walked;
   lastX = player.x;
   lastZ = player.z;
   waterCheck -= dt;
@@ -237,14 +241,15 @@ function frame(now: number): void {
     faceX: -Math.sin(player.yaw),
     faceZ: -Math.cos(player.yaw),
     toWater,
-    walked,
+    walked: strode,
     running: controls.run,
     surface,
     indoors,
     swimming: player.swimming,
     night: state.night,
   });
-  const stirring = (depthHere > 0.03 && walked > 0) || params.has('stir') ? 1 : 0;
+  if (player.landed) sound.land(surface);
+  const stirring = (depthHere > 0.03 && strode > 0) || params.has('stir') ? 1 : 0;
   stir += (stirring - stir) * Math.min(1, dt * (stirring ? 6 : 0.9));
   U.uWalker.value.set(player.x, player.z, stir);
 
