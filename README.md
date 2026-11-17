@@ -80,8 +80,10 @@ water uncovers the row as far as its own depth: three stones on a weak day, elev
 there is a lantern on a low table of stone.
 
 Each stone has a moon pecked into its landward face: as full, and as large, as the moon must be before the sea will
-leave that stone. Beside it, on the stones that need a moon nearly full, the same circle is left empty, because the new
-moon pulls as hard as the full one. The carvings are worked out from the tide rule, not drawn by hand.
+leave that stone. Beside it is its opposite, the moon as thin as the first is full, because a moon near new pulls as
+hard as one near full: the ninth stone shows a moon four-fifths lit and a crescent one-fifth lit. The nearest stones,
+which any moon uncovers, carry a single half moon. The carvings are worked out from the tide rule, not drawn by hand,
+and a test checks them against every low water of seventy days.
 
 ![The twelfth stone](docs/stone.png)
 

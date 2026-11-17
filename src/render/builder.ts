@@ -187,8 +187,9 @@ function builtMaterial(): THREE.ShaderMaterial {
             albedo *= mix(1.0, 0.6, wet);
             if (vKind < 0.5 && normalize(vNormal).x > 0.2) {
               // On the landward face of each standing stone a moon is pecked into the rock: as full, and as large,
-              // as the moon must be before the sea will leave that stone. Beside it, on the stones that need a
-              // moon nearly full, the same circle left empty: the new moon pulls as hard.
+              // as the moon must be before the sea will leave that stone. Beside it, its opposite: the moon as thin
+              // as the first is full, lit from the other side, because a moon near new pulls as hard as one near full.
+              // (A stone that any moon uncovers has one half moon and no second.)
               for (int i = 0; i < 12; i++) {
                 vec3 d = vPos - uStones[i];
                 if (abs(d.x) > 1.3 || abs(d.z) > 0.9 || abs(d.y) > 0.5) continue;
@@ -196,9 +197,12 @@ function builtMaterial(): THREE.ShaderMaterial {
                 float R = 0.17 * (0.55 + 2.4 * (uMoons[i].y - 0.89));
                 vec2 m = (d.zy - vec2(-0.17, 0.0)) / R;
                 float r = length(m);
-                float litPart = smoothstep(1.0, 0.93, r) * smoothstep(-0.05, 0.05, m.x - (1.0 - 2.0 * full) * sqrt(max(1.0 - m.y * m.y, 0.0)));
-                float rim = smoothstep(0.12, 0.04, abs(r - 1.0));
-                float twin = smoothstep(0.12, 0.04, abs(length((d.zy - vec2(0.3, 0.0)) / R) - 1.0)) * smoothstep(0.6, 0.72, full);
+                float litPart = smoothstep(1.0, 0.93, r) * smoothstep(-0.03, 0.03, m.x - (1.0 - 2.0 * full) * sqrt(max(1.0 - m.y * m.y, 0.0)));
+                float rim = smoothstep(0.075, 0.025, abs(r - 1.0));
+                vec2 m2 = (d.zy - vec2(0.3, 0.0)) / R;
+                float r2 = length(m2);
+                float thin = smoothstep(1.0, 0.93, r2) * smoothstep(-0.03, 0.03, -m2.x - (2.0 * full - 1.0) * sqrt(max(1.0 - m2.y * m2.y, 0.0)));
+                float twin = max(smoothstep(0.075, 0.025, abs(r2 - 1.0)), thin * (0.6 + 0.4 * g2)) * smoothstep(0.5, 0.58, full);
                 float carved = max(max(litPart * (0.6 + 0.4 * g2), rim), twin);
                 albedo = mix(albedo, vec3(0.5, 0.48, 0.43) * mix(1.0, 0.6, wet), carved * 0.85);
               }
