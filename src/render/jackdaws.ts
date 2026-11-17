@@ -183,8 +183,8 @@ export class Jackdaws {
     const D = HOUSE.depth;
     const ridge = HOUSE.wall + 1.75;
     const hill = (p: [number, number, number]): Perch => ({ at: new THREE.Vector3(p[0], p[1], p[2]), dryBelow: Infinity });
-    this.perches.push(hill(housePoint(W / 2 - 0.52, 0, ridge + 1.08)));
-    this.perches.push(hill(housePoint(W / 2 - 0.22, 0.24, ridge + 0.8)));
+    this.perches.push(hill(housePoint(HOUSE.chimney, 0, ridge + 1.08)));
+    this.perches.push(hill(housePoint(HOUSE.chimney + 0.27, 0.26, ridge + 0.8)));
     this.perches.push(hill(housePoint(-1.6, 0, ridge + 0.01)));
     this.perches.push(hill(housePoint(0.4, 0, ridge + 0.01)));
     this.perches.push(hill(housePoint(-2.1, D / 2 + 0.08, 0.92)));

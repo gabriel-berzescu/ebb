@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY, HIGHEST_TIDE } from '../src/world/constants';
 import { heavens, nextLowWater, tideAt } from '../src/world/heavens';
-import { FAR_LAMP, FAR_LAMP_FLAME, HOUSE, RUINS, STONES } from '../src/world/layout';
+import { FAR_LAMP, FAR_LAMP_FLAME, HOUSE, RUINS, SEATS, SHELF_ITEMS_AT, SHELF_PLANKS, SHELF_ROW, STONES } from '../src/world/layout';
 import { profile } from '../src/world/shape';
 import { buildTerrain, floodFill } from '../src/world/terrain';
 
@@ -82,6 +82,28 @@ describe('the ground', () => {
     expect(profile(FAR_LAMP.x, FAR_LAMP.z)).toBeCloseTo(FAR_LAMP.ground, 2);
     expect(profile(RUINS.x, RUINS.z)).toBeCloseTo(RUINS.level, 2);
     for (let i = 1; i < STONES.length; i++) expect(STONES[i].x).toBeLessThan(STONES[i - 1].x);
+  });
+
+  it('gives the north bench a clear view of the northern sky', () => {
+    const t = buildTerrain(257);
+    const [ex, ey, ez] = SEATS[1].eye;
+    expect(SEATS[1].yaw).toBe(0);
+    // nothing of the land stands more than five degrees above the horizon anywhere from north-west to north-east,
+    // and the Pole Star is 48 degrees up
+    for (let bearing = -45; bearing <= 45; bearing += 5) {
+      const dx = Math.sin((bearing * Math.PI) / 180);
+      const dz = -Math.cos((bearing * Math.PI) / 180);
+      for (let d = 3; d < 1000; d += 3) {
+        const rise = t.heightAt(ex + dx * d, ez + dz * d) - ey;
+        expect(rise / d).toBeLessThan(Math.tan((5 * Math.PI) / 180));
+      }
+    }
+  });
+
+  it('has room on the shelf for eighteen things, each in its own place', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < SHELF_ROW * SHELF_PLANKS; i++) seen.add(SHELF_ITEMS_AT(i).map((v) => v.toFixed(3)).join(','));
+    expect(seen.size).toBe(18);
   });
 
   it('keeps the house above every tide', () => {

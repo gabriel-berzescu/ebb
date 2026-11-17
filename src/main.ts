@@ -11,6 +11,7 @@ import { Sky } from './render/sky';
 import { starMapTexture } from './render/starMap';
 import { buildStructures, type ShelfItem } from './render/structures';
 import { groundTexture, terrainMesh } from './render/terrainMesh';
+import { THING_KINDS } from './render/things';
 import { poolsMesh, seaMesh } from './render/water';
 import { DAY } from './world/constants';
 import { Clock } from './world/clock';
@@ -62,7 +63,8 @@ scene.add(terrainMesh(terrain));
 scene.add(seaMesh());
 scene.add(poolsMesh(terrain));
 
-const shelf = shelfData as ShelfItem[];
+// ?things shows one of every kind of thing on the shelf, in place of what has really been left there
+const shelf = params.has('things') ? THING_KINDS.map((kind) => ({ kind, by: 'nobody', on: 'never', text: `A ${kind}.` })) : (shelfData as ShelfItem[]);
 const built = buildStructures(terrain, shelf);
 scene.add(built.mesh);
 const solids = built.solids;
@@ -104,7 +106,8 @@ const player = new Player(terrain, solids);
 const interactions = new Interactions(player, clock, lamps, shelf, hintEl, noteEl);
 interactions.onLit = () => sound.lampLit();
 if (params.has('lit')) lamps.farLit = params.get('lit') !== '0';
-if (params.has('sit')) interactions.sit();
+// ?sit=1 starts on the bench under the window wall, ?sit=2 on the north bench
+if (params.has('sit')) interactions.sit(Math.max(0, (num('sit') ?? 1) - 1));
 
 const keys = new Set<string>();
 let lookX = 0;

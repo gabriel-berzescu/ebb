@@ -1,18 +1,19 @@
 import type { Lamps } from '../render/lamps';
 import type { ShelfItem } from '../render/structures';
 import type { Clock } from '../world/clock';
-import { BENCH_SEAT, FAR_LAMP, FAR_LAMP_FLAME, HOUSE, housePoint, SHELF } from '../world/layout';
-import { Player } from './player';
+import { FAR_LAMP, FAR_LAMP_FLAME, SEATS, SHELF, type Seat } from '../world/layout';
+import type { Player } from './player';
 
 const FAR_KEY = 'ebb.farLamp';
 /** How much faster the world runs for someone sitting and watching, and when they let the days run. */
 const WATCHING = 60;
 const DAYS_RUN = 600;
 
-/** The few things that can be done here: sit on the bench, look at the shelf, light the far lamp. */
+/** The few things that can be done here: sit on a bench, look at the shelf, light the far lamp. */
 export class Interactions {
   private reading = -1;
   private satFor = 0;
+  private seat: Seat | null = null;
   /** Called when the far lamp is lit. */
   onLit: (() => void) | null = null;
 
@@ -35,17 +36,21 @@ export class Interactions {
     return this.player.seat !== null;
   }
 
-  sit(): void {
-    this.player.seat = { x: BENCH_SEAT[0], y: BENCH_SEAT[1], z: BENCH_SEAT[2] };
-    this.player.yaw = Player.yawToward(HOUSE.front[0], HOUSE.front[1]);
-    this.player.pitch = -0.04;
+  /** Sit on a bench: 0 is the one under the window wall, 1 the one north of the house. */
+  sit(which = 0): void {
+    const seat = SEATS[which] ?? SEATS[0];
+    this.seat = seat;
+    this.player.seat = { x: seat.eye[0], y: seat.eye[1], z: seat.eye[2] };
+    this.player.yaw = seat.yaw;
+    this.player.pitch = seat.pitch;
     this.satFor = 0;
   }
 
   private stand(): void {
+    const seat = this.seat ?? SEATS[0];
+    this.seat = null;
     this.player.seat = null;
-    const [x, , z] = housePoint(-1.7, HOUSE.depth / 2 + 1.3);
-    this.player.place(x, z, this.player.yaw, this.player.pitch);
+    this.player.place(seat.stand[0], seat.stand[1], this.player.yaw, Math.min(this.player.pitch, 0.2));
   }
 
   private hint(text: string): void {
@@ -99,9 +104,10 @@ export class Interactions {
     }
 
     const near = (x: number, z: number, r: number) => Math.hypot(p.x - x, p.z - z) < r;
-    if (near(BENCH_SEAT[0], BENCH_SEAT[2], 1.9)) {
+    const bench = SEATS.findIndex((s) => near(s.eye[0], s.eye[2], 1.9));
+    if (bench >= 0) {
       this.hint('E  ·  sit and watch');
-      if (act) this.sit();
+      if (act) this.sit(bench);
     } else if (near(SHELF[0], SHELF[2], 1.7) && this.shelf.length > 0) {
       this.hint('E  ·  the shelf');
       if (act) this.showNote(0);

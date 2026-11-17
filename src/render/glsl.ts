@@ -320,13 +320,17 @@ float builtShadow(vec3 p, vec3 n) {
   return sum / 9.0;
 }
 
-/** 1 under the open sky, less inside the house. */
-float openSky(vec3 p) {
+/** 1 inside the house, 0 outside. */
+float indoors(vec3 p) {
   vec3 d = p - uHousePos;
   vec2 q = abs(vec2(dot(d.xz, uHouseAxes.xy), dot(d.xz, uHouseAxes.zw)));
   // the edge of 'indoors' lies inside the thickness of the walls, so no wall face sits on it
-  float inside = (1.0 - smoothstep(uHouseSize.x + 0.12, uHouseSize.x + 0.3, q.x)) * (1.0 - smoothstep(uHouseSize.y + 0.12, uHouseSize.y + 0.3, q.y)) * step(-0.5, d.y) * step(d.y, uHouseSize.z);
-  return 1.0 - 0.72 * inside;
+  return (1.0 - smoothstep(uHouseSize.x + 0.12, uHouseSize.x + 0.3, q.x)) * (1.0 - smoothstep(uHouseSize.y + 0.12, uHouseSize.y + 0.3, q.y)) * step(-0.5, d.y) * step(d.y, uHouseSize.z);
+}
+
+/** 1 under the open sky, less inside the house. */
+float openSky(vec3 p) {
+  return 1.0 - 0.42 * indoors(p);
 }
 
 vec3 skyAmbient(vec3 n) {
@@ -352,6 +356,8 @@ vec3 lampLight(vec3 wpos, vec3 n) {
 
 /** Light leaving a matt surface. 'shadow' applies to the brighter of sun and moon. */
 vec3 shade(vec3 albedo, vec3 n, vec3 wpos, float shadow) {
+  // sun and moon come in by the door and the window, never above them: under the roof it is always shade
+  shadow *= 1.0 - indoors(wpos) * smoothstep(1.9, 2.15, wpos.y - uHousePos.y);
   float sunUp = step(0.0005, dot(uSunLight, vec3(1.0)));
   vec3 direct = uSunLight * max(dot(n, uSunDir), 0.0) * mix(1.0, shadow, sunUp) + uMoonLight * max(dot(n, uMoonDir), 0.0) * mix(shadow, 1.0, sunUp);
   return albedo * (direct + skyAmbient(n) * openSky(wpos) + lampLight(wpos, n));

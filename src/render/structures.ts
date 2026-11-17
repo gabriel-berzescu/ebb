@@ -1,9 +1,10 @@
 import type * as THREE from 'three';
 import type { Solid } from '../game/player';
-import { FAR_LAMP, HOUSE, HOUSE_YAW, housePoint, LAMP, PIT, RUINS, SHELF_ITEMS_AT, STONES, TREES } from '../world/layout';
+import { FAR_LAMP, HOUSE, HOUSE_YAW, housePoint, LAMP, NORTH_BENCH, PIT, RUINS, SHELF_ITEMS_AT, SHELF_PLANKS, SHELF_ROW, shelfHeight, STONES, TREES } from '../world/layout';
 import { noise2, rand2 } from '../world/noise';
 import type { Terrain } from '../world/terrain';
 import { Builder, Kind, type Color, type P3 } from './builder';
+import { makeThing } from './things';
 
 export interface ShelfItem {
   kind: string;
@@ -72,9 +73,32 @@ export function buildStructures(terrain: Terrain, shelf: ShelfItem[]): Built {
     b.quad(housePoint(l, 0, RIDGE), housePoint(r, 0, RIDGE), housePoint(r, eave, eaveH), housePoint(l, eave, eaveH), SLATE, Kind.slate);
     b.quad(housePoint(r, 0, RIDGE), housePoint(l, 0, RIDGE), housePoint(l, -eave, eaveH), housePoint(r, -eave, eaveH), SLATE, Kind.slate);
   }
-  // chimney at the right gable, with its pot
-  hbox(W / 2 - 0.92, W / 2 - 0.12, -0.38, 0.38, H + 0.7, RIDGE + 0.8, WALL, Kind.wall);
-  hbox(W / 2 - 0.68, W / 2 - 0.36, -0.16, 0.16, RIDGE + 0.8, RIDGE + 1.08, [0.5, 0.27, 0.18], Kind.slate);
+  // The chimney, built against the north gable from the ground up: a broad breast for the hearth, drawing in at the
+  // shoulders to the stack, which stands astride the gable and carries the pot.
+  {
+    const c = HOUSE.chimney;
+    const out = W / 2 + 0.5;
+    hbox(W / 2, out, -0.85, 0.85, -0.3, 1.9, WALL, Kind.wall, true);
+    for (const s of [-1, 1]) {
+      const low = housePoint(W / 2, s * 0.85, 1.9);
+      const lowOut = housePoint(out, s * 0.85, 1.9);
+      const high = housePoint(W / 2, s * 0.4, 2.7);
+      const highOut = housePoint(out, s * 0.4, 2.7);
+      b.quad(low, lowOut, highOut, high, WALL, Kind.wall);
+      b.tri(lowOut, housePoint(out, s * 0.4, 1.9), highOut, WALL, Kind.wall);
+    }
+    hbox(c - 0.4, c + 0.4, -0.4, 0.4, 1.9, RIDGE + 0.8, WALL, Kind.wall);
+    hbox(c - 0.16, c + 0.16, -0.16, 0.16, RIDGE + 0.8, RIDGE + 1.08, [0.5, 0.27, 0.18], Kind.slate);
+    // inside, the hearth: stone jambs, a beam for a mantel, a dark mouth with two logs laid ready
+    const face = W / 2 - T;
+    hbox(face - 0.14, face, -0.64, -0.46, 0.04, 1.05, WALL, Kind.wall, true);
+    hbox(face - 0.14, face, 0.46, 0.64, 0.04, 1.05, WALL, Kind.wall, true);
+    hbox(face - 0.18, face, -0.74, 0.74, 1.05, 1.2, WOOD, Kind.wood);
+    hbox(face - 0.02, face + 0.01, -0.46, 0.46, 0.04, 1.05, [0.012, 0.012, 0.012], Kind.slate);
+    hbox(face - 0.55, face, -0.74, 0.74, 0.04, 0.075, [0.2, 0.2, 0.2], Kind.slate);
+    b.lump(housePoint(face - 0.09, -0.08, 0.14), [0.045, 0.045, 0.2], [0.2, 0.15, 0.1], Kind.wood, 71, 0.2, [0, 0], 1);
+    b.lump(housePoint(face - 0.08, 0.1, 0.2), [0.04, 0.04, 0.18], [0.23, 0.17, 0.11], Kind.wood, 72, 0.2, [0, 0], 1);
+  }
   // window frame and lintel of wood
   hbox(0.75, 1.85, D / 2 - 0.3, D / 2 - 0.22, 1.94, 2.0, WOOD, Kind.wood);
   hbox(0.75, 0.81, D / 2 - 0.3, D / 2 - 0.22, 0.95, 2.0, WOOD, Kind.wood);
@@ -86,9 +110,33 @@ export function buildStructures(terrain: Terrain, shelf: ShelfItem[]): Built {
   hbox(-2.5, -0.9, D / 2 + 0.06, D / 2 + 0.1, 0.56, 0.92, WOOD, Kind.wood);
   hbox(-2.42, -2.34, D / 2 + 0.02, D / 2 + 0.1, 0.42, 0.92, WOOD, Kind.wood);
   hbox(-1.06, -0.98, D / 2 + 0.02, D / 2 + 0.1, 0.42, 0.92, WOOD, Kind.wood);
-  // inside: two shelves on the back wall, a table under the window, a bed by the left gable
-  hbox(0.35, 2.05, -D / 2 + T, -D / 2 + T + 0.26, 1.21, 1.25, WOOD, Kind.wood);
-  hbox(0.35, 2.05, -D / 2 + T, -D / 2 + T + 0.22, 1.63, 1.67, WOOD, Kind.wood);
+  // The north bench: by itself on the level ground north of the house, facing due north and leaning back, for
+  // looking up at the Pole Star.
+  {
+    const { x, z, ground } = NORTH_BENCH;
+    b.box([x, ground + 0.4, z], [0.82, 0.24], 0.05, 0, WOOD, Kind.wood);
+    solids.push({ x, z: z + 0.05, hx: 0.82, hz: 0.32, yaw: 0, y0: ground, y1: ground + 0.45 });
+    for (const sx of [-0.7, 0.7]) {
+      b.box([x + sx, ground, z - 0.16], [0.04, 0.04], 0.4, 0, WOOD, Kind.wood);
+      b.box([x + sx, ground, z + 0.2], [0.04, 0.04], 0.4, 0, WOOD, Kind.wood);
+      // the leaning post that carries the back
+      b.quad([x + sx - 0.035, ground + 0.4, z + 0.2], [x + sx + 0.035, ground + 0.4, z + 0.2], [x + sx + 0.035, ground + 1.12, z + 0.56], [x + sx - 0.035, ground + 1.12, z + 0.56], WOOD, Kind.wood);
+      b.quad([x + sx, ground + 0.02, z + 0.62], [x + sx, ground + 0.02, z + 0.56], [x + sx, ground + 0.9, z + 0.45], [x + sx, ground + 0.9, z + 0.51], WOOD, Kind.wood);
+    }
+    for (const [lo, hi] of [
+      [0.52, 0.72],
+      [0.78, 0.98],
+      [1.02, 1.12],
+    ]) {
+      const zAt = (h: number) => z + 0.2 + ((h - 0.4) / 0.72) * 0.36 - 0.012;
+      b.quad([x - 0.82, ground + lo, zAt(lo)], [x + 0.82, ground + lo, zAt(lo)], [x + 0.82, ground + hi, zAt(hi)], [x - 0.82, ground + hi, zAt(hi)], WOOD, Kind.wood);
+    }
+  }
+  // inside: the shelf on the back wall (as many planks as the things left there need), a table under the window,
+  // a bed by the south gable
+  for (let plank = 0; plank < Math.min(SHELF_PLANKS, Math.max(2, Math.ceil(shelf.length / SHELF_ROW))); plank++) {
+    hbox(0.3, 2.2, -D / 2 + T, -D / 2 + T + 0.25, shelfHeight(plank) - 0.04, shelfHeight(plank), WOOD, Kind.wood);
+  }
   hbox(0.7, 1.9, D / 2 - T - 0.78, D / 2 - T - 0.06, 0.7, 0.75, WOOD, Kind.wood, true);
   for (const [a, o] of [
     [0.76, D / 2 - T - 0.72],
@@ -120,17 +168,7 @@ export function buildStructures(terrain: Terrain, shelf: ShelfItem[]): Built {
   lantern([LAMP[0], HOUSE.floor + 0.95, LAMP[2]], false);
 
   // what has been left on the shelf
-  shelf.forEach((item, i) => {
-    const at = SHELF_ITEMS_AT(i);
-    if (item.kind === 'feather') {
-      b.lump([at[0], at[1] + 0.012, at[2]], [0.105, 0.007, 0.024], [0.33, 0.34, 0.38], Kind.leaf, 5 + i, 0.1, [0, 0], 1);
-      b.lump([at[0] + 0.02, at[1] + 0.012, at[2] + 0.004], [0.06, 0.006, 0.03], [0.5, 0.51, 0.55], Kind.leaf, 9 + i, 0.1, [0, 0], 1);
-    } else if (item.kind === 'shell') {
-      b.lump([at[0], at[1] + 0.025, at[2]], [0.05, 0.025, 0.04], [0.8, 0.74, 0.66], Kind.slate, 5 + i, 0.2, [0, 0], 1);
-    } else {
-      b.lump([at[0], at[1] + 0.03, at[2]], [0.05, 0.032, 0.042], [0.4, 0.4, 0.42], Kind.slate, 5 + i, 0.25, [0, 0], 1);
-    }
-  });
+  shelf.forEach((item, i) => makeThing(b, item.kind, SHELF_ITEMS_AT(i), 5 + i * 3));
 
   // ---- three wind-bent trees ---------------------------------------------------------------------------------------
   for (const [ti, tree] of TREES.entries()) {

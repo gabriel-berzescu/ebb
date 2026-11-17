@@ -98,6 +98,14 @@ const fast = await until(() => window.__ebb.clock.lapse > 5, null, 30000);
 check('time runs faster while sitting', fast, `x${(await state()).lapse.toFixed(1)}`);
 check('moving stands up again', await holdUntil('w', () => window.__ebb.player.seat === null));
 
+// the north bench: it faces due north and tips the head back, toward the Pole Star
+await open('day=20.0&cam=-31.5,5.0,180,0');
+check('the north bench offers a seat', await until(() => document.getElementById('hint').textContent.includes('sit')), (await state()).hint);
+await page.keyboard.press('e');
+await until(() => window.__ebb.player.seat !== null);
+const north = await page.evaluate(() => ({ yaw: window.__ebb.player.yaw, pitch: window.__ebb.player.pitch, seated: window.__ebb.player.seat !== null }));
+check('sitting there one looks north and up', north.seated && Math.abs(north.yaw) < 0.01 && north.pitch > 0.4, `yaw ${north.yaw.toFixed(2)}, pitch ${north.pitch.toFixed(2)}`);
+
 // the walls of the house keep the walker out: walk at the window wall from in front of it
 await open('day=5.27&cam=-33.5,15.6,-65,0');
 const w0 = await state();

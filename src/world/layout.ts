@@ -26,6 +26,8 @@ export const HOUSE = {
   depth: 5.0,
   wall: 2.5,
   thick: 0.45,
+  /** Where the middle of the chimney stack is, along the window wall: it stands astride the north gable. */
+  chimney: 7.2 / 2 + 0.1,
 };
 
 /** A point given in the house's own frame: `along` the window wall, `out` of the window, `up` from the floor. */
@@ -40,11 +42,51 @@ export const HOUSE_YAW = frontAngle + Math.PI / 2;
 export const LAMP = housePoint(1.3, HOUSE.depth / 2 - 0.12, 1.07);
 /** Where the eyes are when sitting on the bench outside, under the window wall. */
 export const BENCH_SEAT = housePoint(-1.7, HOUSE.depth / 2 + 0.36, 1.14);
+
+/**
+ * The north bench stands by itself on the level ground north of the house, with the chimney gable behind it. It
+ * faces due north and leans back, so whoever sits there looks up at the Pole Star and sees the sky turn about it.
+ */
+const gable = housePoint(HOUSE.width / 2, 0);
+export const NORTH_BENCH = { x: gable[0], z: gable[2] - 4.6, ground: HOUSE.floor };
+
+export interface Seat {
+  /** Where the eyes are when seated. */
+  eye: [number, number, number];
+  /** Which way the seat faces: yaw (0 is north, turning left as it grows) and how far the head is tipped back. */
+  yaw: number;
+  pitch: number;
+  /** Where to stand on getting up. */
+  stand: [number, number];
+}
+
+export const SEATS: Seat[] = [
+  {
+    eye: BENCH_SEAT,
+    yaw: Math.atan2(-HOUSE.front[0], -HOUSE.front[1]),
+    pitch: -0.04,
+    stand: [housePoint(-1.7, HOUSE.depth / 2 + 1.3)[0], housePoint(-1.7, HOUSE.depth / 2 + 1.3)[2]],
+  },
+  {
+    eye: [NORTH_BENCH.x, NORTH_BENCH.ground + 1.0, NORTH_BENCH.z + 0.14],
+    yaw: 0,
+    pitch: 0.56,
+    stand: [NORTH_BENCH.x, NORTH_BENCH.z - 1.2],
+  },
+];
 /** The middle of the shelf on the back wall inside. */
 export const SHELF = housePoint(1.2, -HOUSE.depth / 2 + HOUSE.thick + 0.13, 1.25);
-/** Where the i-th thing left on the shelf lies. */
+/** How many things lie side by side on one plank of the shelf, and how many planks there can be. */
+export const SHELF_ROW = 6;
+export const SHELF_PLANKS = 3;
+/** Height of the top of a plank above the floor. */
+export function shelfHeight(plank: number): number {
+  return 1.25 + 0.42 * plank;
+}
+/** Where the i-th thing left on the shelf lies: left to right (seen facing the shelf) along the lowest plank, then the one above. */
 export function SHELF_ITEMS_AT(i: number): [number, number, number] {
-  return housePoint(0.6 + 0.34 * i, -HOUSE.depth / 2 + HOUSE.thick + 0.13, 1.25);
+  const plank = Math.min(SHELF_PLANKS - 1, Math.floor(i / SHELF_ROW));
+  return housePoint(2.0 - 0.3 * (i % SHELF_ROW), -HOUSE.depth / 2 + HOUSE.thick + 0.13, shelfHeight(plank));
 }
 /** Just inside the doorway, on the lee side of the house. */
 export const DOOR = housePoint(-1.25, -HOUSE.depth / 2 - 1.2, 0);

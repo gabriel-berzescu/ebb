@@ -38,7 +38,7 @@ npm run build
 | Click | start walking (the mouse looks around; Esc lets go of it) |
 | W A S D | walk |
 | Shift | run; while sitting, let the days run |
-| E | sit on the bench, look at the shelf, light the lamp |
+| E | sit on a bench, look at the shelf, light the lamp |
 | M | sound off and on |
 
 A gamepad works too: left stick walks, right stick looks, A is E, the right trigger runs.
@@ -61,6 +61,11 @@ mirrors all of it.
 
 What is not real is the calendar. The sun goes once round the stars in 70 days, so the constellations of every season
 come round in that time, and the moon keeps to its own invented path.
+
+A second bench stands by itself north of the house, facing due north and leaning back. Sit there at night and the whole
+sky turns about the Pole Star.
+
+![The north bench, with the chimney gable behind it](docs/north-bench.png)
 
 ![Sirius beside the winter Milky Way, over the sea](docs/stars.png)
 
@@ -95,13 +100,25 @@ faster, and then lift together. Real jackdaw roosts do this: the calling is how 
 Inside the house, on the back wall, there is a shelf above the high-water line. Each visitor can leave one thing there
 for whoever comes next.
 
-The shelf is `shelf.json` in this repository. To leave something, add an entry and commit it:
+The shelf is the file `shelf.json` in this repository: a list, oldest first. Each entry is one thing:
 
 ```json
-{ "kind": "pebble", "by": "your name", "on": "2026-11-16", "text": "what you want the next visitor to read" }
+{ "kind": "pebble", "by": "your name", "on": "2026-11-17", "text": "what you want the next visitor to read" }
 ```
 
-`kind` can be `feather`, `shell` or `pebble`. What is committed stays.
+- `kind` is what the thing looks like: `feather`, `shell`, `pebble`, `cup` (a bowl of green tea), `mushroom`, `book`,
+  `bottle`, `leaf`, `coin`, `cone`, `candle` or `key`. Anything else is shown as a pebble. Add `?things` to the address
+  to see one of each laid out on the shelf.
+- `text` is the note that goes with it (`
+` starts a new line); `by` and `on` are shown underneath.
+
+Things lie left to right along the lowest plank, then along the one above; there is room for eighteen. In the house,
+walk up to the shelf and press E to read the notes in order.
+
+To leave something, add an entry at the end of the list and commit. A push to `main` rebuilds the site in about a
+minute. Nothing in the world can take a thing off the shelf: what is committed stays.
+
+New kinds of thing are made in `src/render/things.ts`.
 
 ## How it is put together
 
@@ -119,7 +136,8 @@ scripts/      shot.mjs and tour.mjs take screenshots through headless Chrome (se
 
 Useful addresses while working: `?day=5.27` freezes the world at that day and hour (5.27 is about half past six on
 day 5), `&cam=x,z,yaw,pitch` puts the camera somewhere, `&stone=9` stands in front of the ninth stone, `&sit=1` starts on the
-bench, `&lit=1` lights the far lamp, `&run` lets a frozen world move.
+bench under the window and `&sit=2` on the north bench, `&lit=1` lights the far lamp, `&things` fills the shelf with one
+of every kind of thing, `&run` lets a frozen world move.
 
 ## Not there yet
 
