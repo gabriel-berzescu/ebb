@@ -19,11 +19,14 @@ export class Clock {
   lapse = 1;
   /** When false the world stands still (used for screenshots). */
   running = true;
+  /** A visit that began at a time given in the address is a look at that time: it does not move the island's own clock. */
+  private keep = true;
 
   constructor(fixed?: number) {
     if (fixed !== undefined) {
       this.t = fixed;
       this.running = false;
+      this.keep = false;
       return;
     }
     try {
@@ -42,7 +45,7 @@ export class Clock {
   }
 
   save(): void {
-    if (!this.running) return;
+    if (!this.running || !this.keep) return;
     try {
       localStorage.setItem(KEY, JSON.stringify({ t: this.t, at: Date.now() }));
     } catch {
